@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechStore Pro - Administrador</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f4f7f6; }
+        .navbar { background: #2c3e50; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .btn-primary { background: #3498db; border: none; }
+        .product-card { transition: 0.3s; border-radius: 15px; }
+        .product-card:hover { transform: translateY(-5px); }
+        .badge-stock { font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#"><i class="bi bi-cpu-fill me-2"></i>TechStore Pro</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card p-4 shadow-sm">
+                <h5 class="mb-3 text-primary fw-bold">Registro de Inventario</h5>
+                <form id="productForm">
+                    <div class="mb-3">
+                        <label class="form-label">Nombre del Equipo</label>
+                        <input type="text" id="nombre" class="form-control" placeholder="Ej: Laptop Gamer" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Precio (S/)</label>
+                        <input type="number" id="precio" class="form-control" placeholder="0.00" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Stock disponible</label>
+                        <input type="number" id="stock" class="form-control" placeholder="Cant." required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">
+                        <i class="bi bi-plus-circle me-1"></i> Guardar Producto
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-secondary">Equipos en Almacén</h5>
+                <span class="badge bg-dark" id="totalCount">0 Productos</span>
+            </div>
+            <div class="row" id="inventoryContainer">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const inventoryContainer = document.getElementById('inventoryContainer');
+    const productForm = document.getElementById('productForm');
+
+    // Cargar inventario
+    async function loadInventory() {
+        try {
+            const res = await fetch('/api/productos');
+            const data = await res.json();
+            document.getElementById('totalCount').innerText = `${data.length} Productos`;
+            
+            inventoryContainer.innerHTML = '';
+            data.forEach(p => {
+                inventoryContainer.innerHTML += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card product-card h-100 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title fw-bold mb-0">${p.nombre}</h6>
+                                    <span class="badge ${p.stock > 5 ? 'bg-success' : 'bg-danger'} badge-stock">
+                                        Stock: ${p.stock}
+                                    </span>
+                                </div>
+                                <p class="text-muted small mb-2">ID: #${p.id}</p>
+                                <h5 class="text-primary fw-bold mb-3">S/ ${parseFloat(p.precio).toFixed(2)}</h5>
+                                <button onclick="deleteProduct(${p.id})" class="btn btn-outline-danger btn-sm w-100">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        } catch (error) {
+            console.error("Error cargando productos:", error);
+        }
+    }
+
+    // Guardar producto
+    productForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const product = {
+            nombre: document.getElementById('nombre').value,
+            precio: document.getElementById('precio').value,
+            stock: document.getElementById('stock').value
+        };
+
+        const res = await fetch('/api/productos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(product)
+        });
+
+        if (res.ok) {
+            Swal.fire('¡Éxito!', 'Producto registrado en MySQL', 'success');
+            productForm.reset();
+            loadInventory();
+        }
+    });
+
+    // Eliminar producto corregido
+    async function deleteProduct(id) {
+        const result = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Se borrará permanentemente de la base de datos",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            confirmButtonText: 'Sí, borrar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            const res = await fetch('/api/productos/' + id, { method: 'DELETE' });
+            if (res.ok) {
+                Swal.fire('Eliminado', 'Producto borrado con éxito', 'success');
+                loadInventory();
+            } else {
+                Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
+            }
+        }
+    }
+
+    // Cargar al iniciar
+    loadInventory();
+</script>
+</body>
+</html>
